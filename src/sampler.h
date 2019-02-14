@@ -58,7 +58,7 @@ namespace multiverso { namespace lightlda
          * \param model access
          * \param alias for alias table access
          */
-        int32_t Sample(Document* doc, int32_t word, int32_t state, 
+        int32_t Sample(Document* doc, int32_t index, int32_t word, int32_t state, 
             int32_t old_topic, ModelBase* model, AliasTable* alias);
 
         /*! 
