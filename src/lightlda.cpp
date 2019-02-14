@@ -104,6 +104,93 @@ namespace multiverso { namespace lightlda
             Multiverso::EndConfig();
         }
 
+                /**
+         * 为每个doctment设置通过laplace生成的干扰词，以及词的权重
+         */
+        static void SetDocLaplaceNoise(Document* doc) {
+            doc->noise_words.clear();           
+            for (int32_t i = 0; i < doc->Size(); ++i) {
+                int32_t cur_word = doc->Word(i);
+                // std::vector<std::pair<int32_t, float>> noise_words;
+                std::priority_queue<std::pair<int32_t, float>, std::vector<std::pair<int32_t, float>>, cmpPairSecondFloatGreat> noise_words;
+                bool has_cur_word = false;
+                //for (int32_t counter = 0; counter < Config::num_vocabs; ++counter) {
+                for (int32_t counter = 0; counter < Config::laplace_steps; ++counter) {
+                    int32_t noise_word = rand() % Config::num_vocabs;
+                    //int32_t noise_word = counter;
+                    float laplace_scale = static_cast<float>(simple_rng.GetLaplace(0, Config::laplace_scale)); 
+                    if (laplace_scale > Config::laplace_upperthres || laplace_scale < Config::laplace_lowerthres) {
+                        continue;
+                    }
+                    if (cur_word == noise_word) {
+                        has_cur_word = true;
+                        laplace_scale += 1;
+                    }
+                    
+                    if (noise_words.size() < Config::max_noise_num) {
+                        noise_words.push(std::make_pair(noise_word, laplace_scale));
+                    } else {
+                        if (laplace_scale <= noise_words.top().second) {
+                            continue;
+                        } else {
+                            noise_words.pop();
+                            noise_words.push(std::make_pair(noise_word, laplace_scale));
+                        }
+                    }
+                    // noise_words.push_back(std::make_pair(noise_word, laplace_scale));
+                    //if (noise_words.size() >= Config::max_noise_num) { 
+                    //    break;
+                    //}
+                }
+                
+                if (!has_cur_word) {
+                    float laplace_scale = simple_rng.GetLaplace(0, Config::laplace_scale);
+                    while (laplace_scale > Config::laplace_upperthres || laplace_scale < Config::laplace_lowerthres) {
+                        laplace_scale = simple_rng.GetLaplace(0, Config::laplace_scale);
+                    }
+                    laplace_scale += 1.0;
+                    if (noise_words.size() < Config::max_noise_num) {
+                        noise_words.push(std::make_pair(cur_word, laplace_scale));
+                    } else {
+                        if (laplace_scale < noise_words.top().second) {
+                            ;
+                        } else {
+                            noise_words.pop();
+                            noise_words.push(std::make_pair(cur_word, laplace_scale));
+                        }
+                    }
+                    // noise_words.push_back(std::make_pair(cur_word, 1.0 + laplace_scale));
+                }
+                if (noise_words.empty()) {
+                    Log::Info("empty noise words");
+                    exit(1);
+                }
+                std::vector<std::pair<int32_t, float>> top_noise_words;
+                while (!noise_words.empty()){
+                    top_noise_words.push_back(noise_words.top());
+                    noise_words.pop(); 
+                }
+                
+                // if (int32_t(noise_words.size()) > Config::max_noise_num) {
+                //     for (int32_t top_i = 0; top_i < Config::max_noise_num; ++top_i) {
+                //         top_noise_words.push_back(noise_words[top_i]);
+                //     }
+                // } else {
+                //     top_noise_words = noise_words;
+                // }
+
+                float scale_sum = 0.0;
+                for (auto p = top_noise_words.begin(); p != top_noise_words.end(); p++) {
+                    scale_sum += p->second;
+                }
+                if (scale_sum > 0.0) {
+                    for (auto p = top_noise_words.begin(); p != top_noise_words.end(); p++) {
+                        p->first /= scale_sum;
+                    }
+                }
+                doc->noise_words.push_back(top_noise_words);
+            }
+        }
         
         /*
          * Read in a matrix from a model file with lines in the format:
@@ -211,7 +298,11 @@ namespace multiverso { namespace lightlda
                                 doc->Word(cursor), doc->Topic(cursor), 1);
                             Multiverso::AddToServer<int64_t>(kSummaryRow,
                                 0, doc->Topic(cursor), 1);
+                            if (Config::is_noised != 0) {
+                                SetDocLaplaceNoise(doc);
+                            }
                         }
+
                     }
                     Multiverso::Flush();
                 }

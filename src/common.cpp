@@ -27,6 +27,14 @@ namespace multiverso { namespace lightlda
     int64_t Config::model_capacity = 512 * kMB;
     int64_t Config::delta_capacity = 256 * kMB;
     int64_t Config::alias_capacity = 512 * kMB;
+
+    float Config::laplace_scale = 1.0;
+    float Config::laplace_upperthres = 0.1;
+    float Config::laplace_lowerthres = 0.0;
+    int32_t Config::max_noise_num = 2;
+    int32_t Config::is_print = 0;
+    int32_t Config::laplace_steps = 1000;
+    int32_t Config::is_noised = 0;
     // -- End: Config definitioin and defalut values ----------------------- //
 
     void Config::Init(int argc, char* argv[])
@@ -59,7 +67,14 @@ namespace multiverso { namespace lightlda
             if (strcmp(argv[i], "-data_capacity") == 0) data_capacity = atoi(argv[i + 1]) * kMB;
             if (strcmp(argv[i], "-model_capacity") == 0) model_capacity = atoi(argv[i + 1]) * kMB;
             if (strcmp(argv[i], "-alias_capacity") == 0) alias_capacity = atoi(argv[i + 1]) * kMB;
-            if (strcmp(argv[i], "-delta_capacity") == 0) delta_capacity = atoi(argv[i + 1]) * kMB;            
+            if (strcmp(argv[i], "-delta_capacity") == 0) delta_capacity = atoi(argv[i + 1]) * kMB;     
+            if (strcmp(argv[i], "-laplace_scale") == 0) laplace_scale = static_cast<float>(atof(argv[i + 1]));
+            if (strcmp(argv[i], "-laplace_lowerthres") == 0) laplace_lowerthres = static_cast<float>(atof(argv[i + 1]));
+            if (strcmp(argv[i], "-laplace_upperthres") == 0) laplace_upperthres = static_cast<float>(atof(argv[i + 1]));
+            if (strcmp(argv[i], "-max_noise_num") == 0) max_noise_num = atoi(argv[i + 1]);
+            if (strcmp(argv[i], "-is_print") == 0) is_print = atoi(argv[i + 1]);
+            if (strcmp(argv[i], "-laplace_steps") == 0) laplace_steps = atoi(argv[i + 1]);
+            if (strcmp(argv[i], "-is_noised") == 0) is_noised = atoi(argv[i + 1]);
         }
         Check();
     }
@@ -88,6 +103,13 @@ namespace multiverso { namespace lightlda
         printf("-model_capacity <arg>    Memory pool size(MB) for local model cache\n");
         printf("-alias_capacity <arg>    Memory pool size(MB) for alias table \n");
         printf("-delta_capacity <arg>    Memory pool size(MB) for local delta cache\n");
+        printf("-is_noised <arg>         Noised or not. Default: 0\n");
+        printf("-laplace_scale <arg>     Laplace distribution scala. Default: 0.1\n");
+        printf("-laplace_lowerthres <arg> Laplace lower threshold. Default: 0.0\n");
+        printf("-laplace_upperthres <arg> Laplace upper threshold. Default: 0.1\n");
+        printf("-max_noise_num <arg>     Document max noise words num per positon. Default: 1000\n");
+        printf("-is_print <arg>          Print or not. Default: 0\n");
+        printf("-laplace_steps <arg>     Laplace sample steps. Default: 1000\n");
         exit(0);
     }
 

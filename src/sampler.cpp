@@ -65,7 +65,61 @@ namespace multiverso { namespace lightlda
         doc->GetDocTopicVector(*doc_topic_counter_);
     }
 
-    int32_t LightDocSampler::Sample(Document* doc,
+    float ComputeNoisedWordTopicBetaSum(std::vector<std::pair<int32_t, float>>& noise_words, int32_t topic_s, int32_t topic_t, ModelBase* model, float beta_, int32_t old_topic, int32_t subtractor_, float n_s_beta_sum, float n_t_beta_sum) {
+        std::vector<Row<int32_t>*> word_p_topic_rows;
+        for (auto p = noise_words.begin(); p != noise_words.end(); p++) {
+            if (Config::is_print != 0) {
+                Log::Info("noise word is: %d \n", p->first);
+            }
+            word_p_topic_rows.push_back(&(model->GetWordTopicRow(p->first)));
+        }
+
+        std::vector<float> n_tw_p_betas;
+        std::vector<float> n_sw_p_betas;
+        for (auto p = word_p_topic_rows.begin(); p != word_p_topic_rows.end(); p++) {
+            n_tw_p_betas.push_back((*p)->At(topic_t) + beta_);
+            n_sw_p_betas.push_back((*p)->At(topic_s) + beta_);
+        }
+
+        if (topic_t == old_topic)
+        {
+            for(auto p = n_tw_p_betas.begin(); p != n_tw_p_betas.end(); p++) {
+                *p -= subtractor_;
+                if (*p <= 0.0) {
+                    *p = beta_;
+                }
+            }
+        }
+        if (topic_s == old_topic)
+        {
+            for(auto p = n_sw_p_betas.begin(); p != n_sw_p_betas.end(); p++) {
+                *p -= subtractor_;
+                if (*p <= 0.0) {
+                    *p = beta_;
+                }
+            }
+        }
+        
+        float noised_n_w_beta = 0.0;
+        for(size_t n_index = 0; n_index < noise_words.size(); ++n_index) {
+            float laplace_scale = noise_words[n_index].second;
+            float n_tw_p_beta = n_tw_p_betas[n_index];
+            float n_sw_p_beta = n_sw_p_betas[n_index];
+  
+            noised_n_w_beta += laplace_scale * std::log((n_tw_p_beta*n_s_beta_sum)/(n_sw_p_beta*n_t_beta_sum));
+            
+            if (Config::is_print != 0) {
+                Log::Info("laplace scale is: %f, noised word p_beta is: %f and %f, current noised_n_w_beta is: %f\n", laplace_scale, n_tw_p_beta, n_sw_p_beta, noised_n_w_beta);
+            }
+        }
+        if (Config::is_print != 0) {
+            Log::Info("noised_n_w_beta sum is: %f\n", noised_n_w_beta);
+        }
+        return noised_n_w_beta;
+    }
+
+
+    int32_t LightDocSampler::Sample(Document* doc, int32_t index,
         int32_t word, int32_t old_topic, int32_t s,
         ModelBase* model, AliasTable* alias)
     {
@@ -119,11 +173,23 @@ namespace multiverso { namespace lightlda
 
                 proposal_s = (w_s_cnt + beta_) / (n_s + beta_sum_);
                 proposal_t = (w_t_cnt + beta_) / (n_t + beta_sum_);
+                if (Config::is_noised != 0) {
+                    float noised_n_w_beta = std::exp(ComputeNoisedWordTopicBetaSum(doc->noise_words[index], s, t, model, beta_, old_topic, subtractor_, n_s_beta_sum, n_t_beta_sum));
 
-                nominator = n_td_alpha * n_tw_beta * n_s_beta_sum * proposal_s;
-                denominator = n_sd_alpha * n_sw_beta * n_t_beta_sum * proposal_t;
+                    if (Config::is_print != 0) {
+                        Log::Info("original n_tw_beta is: %f, sum is: %f, noised n_tw_beta is: %f\n", n_tw_beta, n_t_beta_sum, noised_n_w_beta);
+                        Log::Info("original n_sw_beta is: %f, sum is: %f, noised n_sw_beta is: %f\n", n_sw_beta, n_s_beta_sum, noised_n_w_beta);
+                    }
 
-                pi = nominator / denominator;
+                    nominator = n_td_alpha * proposal_s;
+                    denominator = n_sd_alpha * proposal_t;
+                    
+                    pi = (nominator / denominator) * noised_n_w_beta;
+                } else {
+                    nominator = n_td_alpha * n_tw_beta * n_s_beta_sum * proposal_s;
+                    denominator = n_sd_alpha * n_sw_beta * n_t_beta_sum * proposal_t;
+                    pi = nominator / denominator;
+                }
 
                 m = -(rejection < pi);
                 s = (t & m) | (s & ~m);
@@ -172,11 +238,25 @@ namespace multiverso { namespace lightlda
                 proposal_s = (doc_topic_counter_->At(s) + alpha_);
                 proposal_t = (doc_topic_counter_->At(t) + alpha_);
 
-                nominator = n_td_alpha * n_tw_beta * n_s_beta_sum * proposal_s;
-                denominator = n_sd_alpha * n_sw_beta * n_t_beta_sum * proposal_t;
+                if (Config::is_noised != 0) {
+                    float noised_n_w_beta = std::exp(ComputeNoisedWordTopicBetaSum(doc->noise_words[index], s, t, model, beta_, old_topic, subtractor_, n_s_beta_sum, n_t_beta_sum));
 
-                pi = nominator / denominator;
-
+                    if (Config::is_print != 0) {
+                        Log::Info("original n_tw_beta is: %f, sum is: %f, noised n_tw_beta is: %f\n", n_tw_beta, n_t_beta_sum, noised_n_w_beta);
+                        Log::Info("original n_sw_beta is: %f, sum is: %f, noised n_sw_beta is: %f\n", n_sw_beta, n_s_beta_sum, noised_n_w_beta);
+                    }
+ 
+                    nominator = n_td_alpha * proposal_s;
+                    denominator = n_sd_alpha * proposal_t;
+                    
+                    pi = (nominator / denominator) * noised_n_w_beta;
+                    
+                } else {
+                    nominator = n_td_alpha * n_tw_beta * n_s_beta_sum * proposal_s;
+                    denominator = n_sd_alpha * n_sw_beta * n_t_beta_sum * proposal_t;
+                    pi = nominator / denominator;
+                }
+                
                 m = -(rejection < pi);
                 s = (t & m) | (s & ~m);
             }

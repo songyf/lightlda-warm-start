@@ -69,6 +69,15 @@ namespace multiverso { namespace lightlda
         static int64_t model_capacity;
         static int64_t delta_capacity;
         static int64_t alias_capacity;
+        
+        static int32_t is_noised;
+        static float laplace_scale;
+        static float laplace_lowerthres;
+        static float laplace_upperthres;
+        static int32_t max_noise_num;
+        static int32_t is_print;
+        static int32_t laplace_steps;
+
     private:
         /*! \brief Print usage */
         static void PrintUsage();
