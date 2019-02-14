@@ -10,6 +10,8 @@
 #include <map>
 #include <queue>
 #include <iostream>
+#include <random>
+#include <sstream>
 #include <algorithm>
 #include <multiverso/barrier.h>
 #include <multiverso/log.h>
@@ -20,6 +22,12 @@ static SimpleRNG simple_rng;
 
 namespace multiverso { namespace lightlda
 {     
+    struct cmpPairSecondFloatGreat{
+        bool operator() (const std::pair<int32_t, float>&a, const std::pair<int32_t, float>& b) {
+            return a.second > b.second;
+        }
+    };
+
     class LightLDA
     {
     public:

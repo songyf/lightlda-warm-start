@@ -42,7 +42,7 @@ namespace multiverso { namespace lightlda
             int32_t word = doc->Word(cursor);
             if (word > lastword) break;
             int32_t old_topic = doc->Topic(cursor);
-            int32_t new_topic = Sample(doc, word, old_topic, old_topic,
+            int32_t new_topic = Sample(doc, cursor, word, old_topic, old_topic,
                 model, alias);
             if (old_topic != new_topic)
             {

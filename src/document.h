@@ -7,6 +7,8 @@
 #define LIGHTLDA_DOCUMENT_H_
 
 #include "common.h"
+#include "map"
+#include "vector"
 
 namespace multiverso
 {
@@ -40,6 +42,9 @@ namespace multiverso { namespace lightlda
         void SetTopic(int32_t index, int32_t topic);
         /*! \brief Get the doc-topic vector */
         void GetDocTopicVector(Row<int32_t>& vec);
+
+        //文档中的词的干扰词，以及干扰词的权重。按照位置存储
+        std::vector<std::vector<std::pair<int32_t, float>>> noise_words;
     private:
         int32_t* begin_;
         int32_t* end_;
