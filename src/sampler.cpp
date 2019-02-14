@@ -1,5 +1,8 @@
 #include "sampler.h"
 
+#include <vector>
+#include <map>
+#include <cmath>
 #include "alias_table.h"
 #include "common.h"
 #include "document.h"
@@ -256,7 +259,7 @@ namespace multiverso { namespace lightlda
                     denominator = n_sd_alpha * n_sw_beta * n_t_beta_sum * proposal_t;
                     pi = nominator / denominator;
                 }
-                
+
                 m = -(rejection < pi);
                 s = (t & m) | (s & ~m);
             }

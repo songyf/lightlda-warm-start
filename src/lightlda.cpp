@@ -7,12 +7,16 @@
 #include "meta.h"
 #include "util.h"
 #include <vector>
+#include <map>
+#include <queue>
 #include <iostream>
-#include <random>
-#include <sstream>
+#include <algorithm>
 #include <multiverso/barrier.h>
 #include <multiverso/log.h>
 #include <multiverso/row.h>
+#include "SimpleRNG.h"
+
+static SimpleRNG simple_rng;
 
 namespace multiverso { namespace lightlda
 {     
